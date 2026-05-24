@@ -1,0 +1,92 @@
+
+## Quick Start (新規セットアップ)
+
+```bash
+# 1. リポジトリを clone
+git clone https://github.com/kaji-ou/LDRP.git
+cd LDRP
+
+# 2. conda env を 1 コマンドでセットアップ
+./setup_env.sh
+
+# 3. activate
+conda activate ldrp
+
+# 4. テスト実行
+python test.py
+```
+
+### 前提
+
+- anaconda / miniconda がインストール済み
+- macOS または Linux (Windows は WSL2 経由)
+
+### SafeEnv について
+
+`drp_env/wrapper/safe_marl.py` の SafeEnv は MARL 系の path planner (QMIX, IQL, VDN, MAA2C) と組合せる際に **待機 agent も衝突回避保護対象** になります。PBS を使う場合は `test.py` が自動で `pbs_mode=True` に切替えて PBS の path 計画と整合させます。
+
+## 実行方法について
+
+```
+git clone https://github.com/kaji-ou/LDRP.git
+pip install -e ./src/main/LDRP
+pip install -r ./src/main/LDRP/requirements.txt
+```
+
+`src/config/default.yaml`で1エピソードのステップ数や使用するマップやアルゴリズムなどを設定し，`test.py`を実行
+
+タスクありの環境で実行する場合は`gym.make`の引数の`task_flag`を`True`にする．
+タスクリストを設定したい場合は`gym.make`の引数の`task_list`に用意したタスクリストを入れる．
+
+いろんな条件をまとめて実験したい場合は`run.py`を実行．
+
+## policyの実装について
+`src/policy`で，経路計画を`agents_action`，タスク割り当てを`task_assign`として
+`joint_action = {"pass": agents_action, "task": task_assign}`のようにする．
+
+`agents_action`は従来のDRPと同じ．長さがエージェント数となる配列で，各要素は各エージェントが進むノードを表す．
+
+`task_assign`は長さがエージェント数となる配列で，各要素は各エージェントにタスクリスト`env.current_tasklist`の何番目のタスクを割当てるかを表す．
+
+タスクを未実行状態のエージェントにのみ，新たにタスクを割当てることが可能．
+割り当てを行わない場合は-1を入れる．
+
+例）タスクリスト`[[1,2],[5,3],[8,9]]`が存在し，エージェントへの割り当てを`[1,0,-1]`とすると，エージェント0にタスク[5,3]，エージェント1にタスク[1,2]を割当て，エージェント2にはタスクを割り当てない．
+
+
+`PolicyManager`は経路計画を`TaskManager`はタスク割当てをまとめているため利用可能
+
+- タスクに関する情報
+	- `env.current_tasklist`：現在のすべての未実行状態のタスクのリスト  
+	（例：タスク数3，`[[1,2],[5,3],[8,9]]`）
+	- `env.assigned_list`：未実行のタスクがどのエージェントに割り当てられているかのリスト．割り当てられていない場合は-1  
+	（例：タスク数3，タスク0はエージェント1に，タスク1はエージェント0に割り当てられており，タスク2は割り当てられていない．`[1,0,-1]`）
+	- `env.assigned_tasks`：各エージェントに割り当てられたタスクの情報．実行中のものも含む  
+	（例：エージェント数3，エージェント0，1はタスクを割当てられており，エージェント2はタスクを割り当てられていない．`[[1,2],[3,4],[]]`）
+
+## タスク生成と処理について
+タスクは各ステップで`env.current_tasklist`に追加される．
+いつ，どんなタスクが追加されるかはエピソード開始時に決定する．
+タスクリストを設定したい場合は`gym.make`の引数の`task_list`に用意したタスクリストを入れる．
+
+### タスク処理の流れ
+タスク割当て &rarr; エージェントがピックアップ場所へ向かう &rarr; タスクをピックアップする（実行開始）
+ &rarr; タスクを配達場所まで届ける &rarr; 配達完了　&rarr; 次の割り当てを待つ
+
+
+## 学習方法，モデルの適用について
+epymarlを利用して学習したモデルを利用可能
+
+`src/all_policy/policy.py`内の`MARLPolicy`クラスでモデルのパスやファイル名を自身で指定することで利用可能
+
+## drp_env.pyの変更箇所について
+
+- pbsのために200行目を変更した点は強化学習の際に影響があるかもしれないため注意
+- 継続型の問題の際には，エージェントが目的地についている状態でもエージェントの`avail_actions`がゴールノードに固定されないように変更
+
+## pbsについて
+探索手法ですが，
+- 順番に動かしてエージェントの動きを決めているため，他のエージェントが道を封鎖すること
+- drpはエージェントの行動の自由度が低いこと
+
+などの理由で，衝突しない経路が発見できないことがあります．

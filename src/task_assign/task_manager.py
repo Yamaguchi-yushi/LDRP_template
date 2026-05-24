@@ -1,0 +1,24 @@
+from src.task_assign.task_policy.random import Random
+from src.task_assign.task_policy.ppo import PPOAgent
+from src.task_assign.task_policy.ppo1 import PPOAgent_1
+from src.task_assign.task_policy.tp import TP
+
+class TaskManager():
+    def __init__(self, name, args=None):
+        if name == "fifo":
+            #print("call fifo")
+            self.task_assigner = Random()
+        elif name == "tp":
+            #print("call TP")
+            self.task_assigner = TP()
+        elif name == "ppo":
+            #print("call ppo")
+            self.task_assigner = PPOAgent(args)
+        elif name == "ppo_v1":
+            #print("call ppo_v1")
+            self.task_assigner = PPOAgent_1(args)
+        else:
+            raise ValueError(f"Unknown task assignment method: {name}")
+
+    def assign_task(self, env):
+        return self.task_assigner.assign_task(env)
