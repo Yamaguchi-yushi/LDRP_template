@@ -6,8 +6,7 @@ from .maddpg import MADDPGCritic
 from .maddpg_ns import MADDPGCriticNS
 from .ac import ACCritic
 from .ac_ns import ACCriticNS
-from .pac_ac_ns import PACCriticNS
-from .pac_dcg_ns import DCGCriticNS
+
 REGISTRY = {}
 
 REGISTRY["coma_critic"] = COMACritic
@@ -18,7 +17,12 @@ REGISTRY["maddpg_critic"] = MADDPGCritic
 REGISTRY["maddpg_critic_ns"] = MADDPGCriticNS
 REGISTRY["ac_critic"] = ACCritic
 REGISTRY["ac_critic_ns"] = ACCriticNS
-REGISTRY["pac_critic_ns"] = PACCriticNS
-REGISTRY["pac_dcg_critic_ns"] = DCGCriticNS
 
 
+def register_pac_critics():
+    """PAC critics の遅延登録. pac_dcg_ns が torch_scatter (heavy/optional)
+    に依存するため eager import を避け, PAC learner 側から必要時のみ呼ぶ."""
+    from .pac_ac_ns import PACCriticNS
+    from .pac_dcg_ns import DCGCriticNS
+    REGISTRY["pac_critic_ns"] = PACCriticNS
+    REGISTRY["pac_dcg_critic_ns"] = DCGCriticNS
