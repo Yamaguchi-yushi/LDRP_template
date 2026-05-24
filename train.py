@@ -1,5 +1,10 @@
 import subprocess
 import time
+import os
+
+# 各サブプロセスがログをリダイレクトする先. 存在しないと sh の `>` が即エラーで
+# 死ぬ. `All runs completed.` だけ出て学習が走らない (= 静かに失敗する) 事故を防ぐ.
+os.makedirs("train_results", exist_ok=True)
 """
 command = [
     ["python3", "test.py", "map_5x4", "3", "pbs", "tp"]
